@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "nubby"
+version = "0.0.1"
+description = "Config loader that injects configs using Bevy."
+authors = ["ZechCodes <hi@zech.codes>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+Bevy = "^2.0.2"
+tramp = "^0.1.10"
+pyyaml = { version = "^6.0.2", optional = true }
+tomlkit = { version = "^0.13.2", optional = true }
+
+[tool.poetry.extras]
+yaml = ["pyyaml"]
+toml = ["tomlkit"]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
