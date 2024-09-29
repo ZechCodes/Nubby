@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nubby"
-version = "0.0.1"
+version = "0.0.2"
 description = "Config loader that injects configs using Bevy."
 authors = ["ZechCodes <hi@zech.codes>"]
 license = "MIT"

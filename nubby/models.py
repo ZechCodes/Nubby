@@ -6,10 +6,11 @@ class ConfigModel:
     __config_key__: str
 
     def __init_subclass__(cls, **kwargs):
+        lax = kwargs.pop("lax", False)
         cls.__config_filename__ = kwargs.pop("filename", getattr(cls, "__config_filename__", ""))
         cls.__config_key__ = kwargs.pop("key", getattr(cls, "__config_key__", ""))
 
-        if not cls.__config_filename__:
+        if not lax and not cls.__config_filename__:
             bases = ", ".join(base.__name__ for base in cls.__bases__)
             raise ValueError(
                 f"You must specify a config filename for {cls.__module__}.{cls.__qualname__}.\n"
