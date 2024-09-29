@@ -5,6 +5,9 @@ description = "Config loader that injects configs using Bevy."
 authors = ["ZechCodes <hi@zech.codes>"]
 license = "MIT"
 readme = "README.md"
+homepage = "https://github.com/ZechCodes/Nubby"
+repository = "https://github.com/ZechCodes/Nubby"
+documentation = "https://github.com/ZechCodes/Nubby/blob/main/README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
