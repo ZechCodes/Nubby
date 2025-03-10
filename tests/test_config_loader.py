@@ -1,4 +1,4 @@
-import json
+from pathlib import Path
 
 from nubby import ConfigModel, ConfigController
 from io import BytesIO
@@ -27,40 +27,37 @@ class UnclosableBytesIO(BytesIO):
         self.seek(0)
 
 
-class DummyPath:
+class DummyPath(Path):
     files = {
         "/example_json.json": UnclosableBytesIO(b'{"key": "value"}'),
         "/example_toml.toml": UnclosableBytesIO(b'[data]\nname = "bob"'),
     }
-    def __init__(self, path):
-        self.path = path
-
     def __truediv__(self, other):
-        return DummyPath(f"{self.path}/{other}")
+        return DummyPath(super().__truediv__(other))
 
     def is_file(self):
-        return "." in self.path
+        return "." in str(self)
 
     def exists(self):
-        return self.path in self.files
+        return str(self) in self.files
 
     def open(self, mode):
-        if self.path not in self.files:
-            raise RuntimeError(f"Not a file: {self.path}")
+        if str(self) not in self.files:
+            raise RuntimeError(f"Not a file: {self}")
 
         if mode == "wb":
-            self.files[self.path].truncate(0)
+            self.files[str(self)].truncate(0)
 
-        return self.files[self.path]
+        return self.files[str(self)]
 
     @classmethod
     def cwd(cls):
-        return cls("")
-
+        return cls("/")
 
 
 def test_config_loading():
-    manager = ConfigController([DummyPath.cwd()])
+    manager = ConfigController()
+    manager.add_path(DummyPath.cwd())
     model = manager.load_config_for(JsonModel)
     assert model.key == "value"
 
@@ -69,7 +66,8 @@ def test_config_loading():
 
 
 def test_config_writing():
-    manager = ConfigController([DummyPath.cwd()])
+    manager = ConfigController()
+    manager.add_path(DummyPath.cwd())
     change_model = JsonModel("new_value")
     manager.save(change_model)
     model = manager.load_config_for(JsonModel)
