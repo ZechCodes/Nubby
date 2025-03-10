@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 from nubby import ConfigController, ConfigModel
 from nubby.controllers import ConfigFile, set_active_controller
@@ -22,7 +23,7 @@ def test_injection():
     controller._config_cache["testing_config"] = ConfigFile(
         {"model": {"foo": "baz", "bar": 42}},
         None,
-        "/testing_config.json"
+        Path("/testing_config.json"),
     )
     registry = Registry()
     registry.add_hook(model_injector)
