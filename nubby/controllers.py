@@ -2,9 +2,9 @@ from pathlib import Path
 from typing import TypeVar, Type, Iterable, Generator
 
 import bevy
+from bevy.containers import Container
 
 from nubby.handlers import ConfigHandler
-import nubby.models
 
 TModel = TypeVar("TModel", bound="nubby.models.Model")
 
@@ -16,20 +16,22 @@ class ConfigFile:
 
 
 class ConfigController:
-    def __init__(self, paths: Iterable[Path] = (), handlers: Iterable[Type[ConfigHandler]] = ()):
-        self._paths = self._setup_paths(paths)
+    def __init__(self, handlers: Iterable[Type[ConfigHandler]] = ()):
+        self._paths = []
         self._handlers = self._setup_handlers(handlers)
         self._config_cache: dict[str, ConfigFile] = {}
 
     def add_path(self, path: Path):
-        self._paths.append(path)
+        self._paths.append(
+            self._validate(path)
+        )
 
     def add_handler(self, handler: Type[ConfigHandler]):
         self._handlers.update(self._associate_extensions_to_handlers([handler]))
 
     def load_config_for(self, model: Type[TModel]) -> TModel:
         filename = model.__config_filename__
-        config = self._get_cached_config_file(filename)
+        config = self._get_config_file_with_cache(filename)
         data = config.data
         if model.__config_key__:
             data = data.get(model.__config_key__)
@@ -43,7 +45,7 @@ class ConfigController:
 
     def save(self, model: TModel):
         filename = model.__config_filename__
-        config = self._get_cached_config_file(filename)
+        config = self._get_config_file_with_cache(filename)
         if model.__config_key__:
             config.data[model.__config_key__] = model.to_dict()
 
@@ -54,7 +56,7 @@ class ConfigController:
             config.handler.write(config.data, file)
 
     def _find_config_file(self, filename: str) -> tuple[Path, ConfigHandler]:
-        for path in self._paths:
+        for path in self._get_paths():
             for extension, handler in self._handlers.items():
                 file_path = path / f"{filename}.{extension}"
                 if file_path.exists():
@@ -62,10 +64,10 @@ class ConfigController:
 
         raise FileNotFoundError(
             f"Config file {filename!r} not found in paths:\n"
-            f"{'\n'.join(f'    - {path}' for path in self._paths)}"
+            f"{'\n'.join(f'    - {path}' for path in self._get_paths())}"
         )
 
-    def _get_cached_config_file(self, filename: str) -> ConfigFile:
+    def _get_config_file_with_cache(self, filename: str) -> ConfigFile:
         file_path, handler = self._find_config_file(filename)
         if file_path not in self._config_cache:
             with file_path.open("rb") as file:
@@ -73,19 +75,11 @@ class ConfigController:
 
         return self._config_cache[filename]
 
-    def _setup_paths(self, paths: Iterable[Path]) -> list[Path]:
-        path_list = list(paths)
+    def _get_paths(self) -> list[Path]:
+        if self._paths:
+            return self._paths
 
-        if not path_list:
-            return [Path.cwd()]
-
-        if invalid_paths := [path for path in path_list if path.is_file()]:
-            raise ValueError(
-                f"Paths must be directories, not files:\n"
-                f"{'\n'.join(f'    - {path}' for path in invalid_paths)}"
-            )
-
-        return path_list
+        return [Path.cwd()]
 
     def _setup_handlers(self, handlers: Iterable[Type[ConfigHandler]]) -> dict[str, ConfigHandler]:
         handler_list = list(handlers)
@@ -106,8 +100,24 @@ class ConfigController:
 
         return dict(self._associate_extensions_to_handlers(handler_list))
 
+    def _validate(self, path: Path | str) -> Path:
+        match path:
+            case Path() if path.is_dir():
+                return path
+
+            case str():
+                return self._validate(Path(path))
+
+            case Path() if not path.is_dir():
+                raise ValueError("Path must be a directory, not a file")
+
+            case _:
+                raise ValueError(f"Received an invalid path value: {path!r}")
+
+
+    @staticmethod
     def _associate_extensions_to_handlers(
-        self, handlers: list[Type[ConfigHandler]]
+        handlers: list[Type[ConfigHandler]]
     ) -> Generator[tuple[str, ConfigHandler], None, None]:
         handler_instances = {}
         for handler in handlers:
@@ -118,9 +128,9 @@ class ConfigController:
                 yield extension, handler_instances[handler]
 
 
-def get_active_controller() -> ConfigController:
-    return bevy.get_repository().get(ConfigController)
+def get_active_controller(container: Container | None = None) -> ConfigController:
+    return bevy.get_container(container).get(ConfigController)
 
 
-def set_active_controller(controller: ConfigController):
-    bevy.get_repository().set(ConfigController, controller)
+def set_active_controller(controller: ConfigController, container: Container | None = None):
+    bevy.get_container(container).instances[ConfigController] = controller

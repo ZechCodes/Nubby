@@ -1,3 +1,8 @@
+from typing import Type
+
+from bevy.hooks import hooks
+from bevy.containers import Container
+from tramp.optionals import Optional
 import nubby.controllers
 
 
@@ -23,3 +28,13 @@ class ConfigModel:
     @classmethod
     def __bevy_constructor__(cls):
         return nubby.controllers.get_active_controller().load_config_for(cls)
+
+
+@hooks.HANDLE_UNSUPPORTED_DEPENDENCY
+def model_injector[T](container: Container, dependency: Type[T]) -> Optional[T]:
+    if isinstance(dependency, type) and issubclass(dependency, ConfigModel):
+        return Optional.Some(
+            nubby.controllers.get_active_controller(container).load_config_for(dependency)
+        )
+
+    return Optional.Nothing()
