@@ -1,12 +1,14 @@
 from pathlib import Path
-from typing import TypeVar, Type, Iterable, Generator
+from typing import Type, Iterable, Generator, TYPE_CHECKING
 
 import bevy
 from bevy.containers import Container
 
 from nubby.handlers import ConfigHandler
 
-TModel = TypeVar("TModel", bound="nubby.models.Model")
+if TYPE_CHECKING:
+    import nubby.models
+
 
 class ConfigFile:
     def __init__(self, data: dict[str, dict], handler: ConfigHandler, path: Path):
@@ -29,8 +31,9 @@ class ConfigController:
     def add_handler(self, handler: Type[ConfigHandler]):
         self._handlers.update(self._associate_extensions_to_handlers([handler]))
 
-    def load_config_for(self, model: Type[TModel]) -> TModel:
-        filename = model.__config_filename__
+    def load_config_for[T: "nubby.models.SectionModel"](self, model: "Type[T]") -> T:
+        file_model = model.__file_definition__
+        filename = file_model.file_name
         config = self._get_config_file_with_cache(filename)
         data = config.data
         if model.__config_key__:
@@ -43,9 +46,12 @@ class ConfigController:
 
         return model(**data)
 
-    def save(self, model: TModel):
-        filename = model.__config_filename__
+    def save(self, model: "nubby.models.SectionModel"):
+        file_definition = model.__file_definition__
+        filename = file_definition.file_name
         config = self._get_config_file_with_cache(filename)
+
+        config_file.update
         if model.__config_key__:
             config.data[model.__config_key__] = model.to_dict()
 

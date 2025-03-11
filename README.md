@@ -22,10 +22,10 @@ allows writing to TOML files.
 ## Usage
 
 Nubby is designed to have the smallest possible API surface area. You just need to create a model type that implements
-the `ConfigModel` interface and declare the file name it should look for. Then you can inject that model wherever you
+the `SectionModel` interface and declare the file name it should look for. Then you can inject that model wherever you
 need it using Bevy.
 
-The `ConfigModel` type provides some helper functionality for setting the file name as a class keyword argument.
+The `SectionModel` type provides some helper functionality for setting the file name as a class keyword argument.
 Alternatively you can set the `__config_filename__` attribute on the class directly.
 
 The file name shouldn't include the file extension. Nubby's file handlers look for supported file extensions in the
@@ -38,15 +38,17 @@ Here's a basic example of loading a model from a file.
 ```python
 from dataclasses import dataclass
 from bevy import inject, dependency
-from nubby import ConfigModel
+from nubby import SectionModel
+
 
 @dataclass
-class Person(ConfigModel, filename="person_info"):
+class Person(SectionModel, filename="person_info"):
     name: str
     age: int
 
     def to_dict(self):
         return {"name": self.name, "age": self.age}
+
 
 @inject
 def print_person_details(person: Person = dependency()):
@@ -63,16 +65,18 @@ To save any modifications to a model just call the active controller's `save` me
 
 ```python
 from dataclasses import dataclass
-from nubby import ConfigModel
+from nubby import SectionModel
 from nubby.controllers import get_active_controller
 
+
 @dataclass
-class Person(ConfigModel, filename="person_info"):
+class Person(SectionModel, filename="person_info"):
     name: str
     age: int
 
     def to_dict(self):
         return {"name": self.name, "age": self.age}
+
 
 person = Person("Bob", 31)
 get_active_controller().save(person)
