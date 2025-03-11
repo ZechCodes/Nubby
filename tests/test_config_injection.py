@@ -18,12 +18,22 @@ class Model(ConfigModel):
     bar: int
 
 
+class MockConfigController(ConfigController):
+    def __init__(self, **config_files: ConfigFile):
+        super().__init__()
+        self._config_cache = config_files
+
+    def _get_config_file_with_cache(self, filename: str) -> ConfigFile:
+        return self._config_cache[filename]
+
+
 def test_injection():
-    controller = ConfigController()
-    controller._config_cache["testing_config"] = ConfigFile(
-        {"model": {"foo": "baz", "bar": 42}},
-        None,
-        Path("/testing_config.json"),
+    controller = MockConfigController(
+        testing_config=ConfigFile(
+            {"foo": "baz", "bar": 42},
+            None,
+            Path("/testing_config.json"),
+        )
     )
     registry = Registry()
     registry.add_hook(model_injector)
