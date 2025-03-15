@@ -15,50 +15,14 @@ class SectionModel(Protocol):
         ...
 
 
-class ConfigFile:
-    def __init__(self, file_model: "FileModelDefinition", data: dict[str, Any]):
-        self.file_model = file_model
-        self.data = data
-
-    @overload
-    def get(self, section_model: Any) -> NoReturn:
-        ...
-
-    @overload
-    def get(self, section_model: Type[SectionModel]) -> SectionModel:
-        ...
-
-    def get[T: SectionModel | Any](self, section_model: Type[T]) -> T:
-        if not is_section_model_type(section_model):
-            raise ValueError(f"{section_model} is not a valid section model type")
-
-        return section_model(
-            **self.data[self.file_model.sections[section_model]]
-        )
-
-    @overload
-    def update_section(self, section: Any, data: dict[str, Any]) -> NoReturn:
-        ...
-
-    @overload
-    def update_section(self, section: Type[SectionModel], data: dict[str, Any]) -> None:
-        ...
-
-    def update_section(self, section: Type[SectionModel], data: dict[str, Any]):
-        if not is_section_model_type(section):
-            raise ValueError(f"{section} is not a valid section model type")
-
-        self.data[self.file_model.sections[section]] = data
-
-
 class FileModelDefinition:
     def __init__(self, file_name: str, *, name_generator: Callable[[str, str], str] | None = None):
         self.file_name = file_name
         self.sections: dict[Type[SectionModel], str] = {}
         self._name_generator = name_generator or self._default_name_generator
 
-    def create_model_builder(self, data: dict[str, Any]) -> ConfigFile:
-        return ConfigFile(self, data)
+    def get_key_for(self, section: Type[SectionModel]) -> str:
+        return self.sections[section]
 
     @overload
     def section(self, name: str) -> Callable[[Type[Any]], Type[SectionModel]]:

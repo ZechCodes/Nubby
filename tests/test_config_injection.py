@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from loaders import ConfigLoader
 from nubby import ConfigController, SectionModel
 from nubby.controllers import ConfigFile, set_active_controller
 
@@ -11,7 +12,7 @@ from nubby.models import model_injector, new_file_model
 
 file_definition = new_file_model("testing_config")
 
-@file_definition.section
+@file_definition.section("test_model")
 @dataclass
 class Model:
     foo: str
@@ -19,21 +20,40 @@ class Model:
 
 
 class MockConfigController(ConfigController):
-    def __init__(self, **config_files: ConfigFile):
+    def __init__(self, **loaded_configs: ConfigLoader):
         super().__init__()
-        self._config_cache = config_files
+        self._loaded_configs = loaded_configs
 
-    def _get_config_file_with_cache(self, filename: str) -> ConfigFile:
-        return self._config_cache[filename]
+    def _get_config_file(self, filename: str) -> ConfigLoader:
+        return self._loaded_configs[filename]
+
+
+class MockLoader(ConfigLoader):
+    def __init__(self, path):
+        super().__init__(path)
+        self.data = None
+
+    def load(self, key: str = "") -> dict:
+        if key == "":
+            return self.data
+
+        return self.data[key]
+
+    def set_test_data(self, data):
+        self.data = data
+        return self
+
+    def write(self, data: dict):
+        self.data = data
+
+    @classmethod
+    def supported(cls) -> bool:
+        return True
 
 
 def test_injection():
     controller = MockConfigController(
-        testing_config=ConfigFile(
-            {"foo": "baz", "bar": 42},
-            None,
-            Path("/testing_config.json"),
-        )
+        testing_config=MockLoader(Path("/testing_config.json")).set_test_data({"test_model": {"foo": "baz", "bar": 42}})
     )
     registry = Registry()
     registry.add_hook(model_injector)
