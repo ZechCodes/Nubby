@@ -1,3 +1,12 @@
+"""This module provides the ConfigController class which manages config files by searching for files and loading them
+using the appropriate loader.
+
+The controller provides methods to create model instances populated from config files and to write data in model
+instances into config files.
+
+The controller is intended to be stored in a Bevy container and used as a dependency of functions in the same context.
+This allows configs to be cached.
+"""
 from pathlib import Path
 from typing import Type, Iterable, Generator
 
@@ -9,18 +18,33 @@ from nubby.loaders import ConfigLoader
 from nubby.models import is_section_model, is_section_model_type, to_dict
 
 
-
-
 class ConfigController:
+    """The ConfigController is responsible for loading and saving config files.
+
+    It is responsible for finding the correct config file for a given model and loading the data into the model. It also
+    provides a way to save changes to a model back to the config file.
+
+    The controller holds all loader types and config file search paths. It also holds a cache of loaded config file
+    loaders.
+
+    When a model needs to be populated, the controller searches for a file in the search paths that has an extension
+    that is supported by a loader. If no file is found, a FileNotFoundError is raised. If a file is found,
+    the path is passed to the loader and then the section key is loaded from the loader.
+
+    Once the data is loaded, the loader instance is stored for later reuse. It is up to the loader to cache the config
+    data.
+    """
     def __init__(self, loaders: Iterable[Type[ConfigLoader]] = ()):
         self._paths = []
         self._loaders = self._setup_loaders(loaders)
         self._loaded_configs: dict[str, ConfigLoader] = {}
 
     def add_path(self, path: Path):
+        """Adds a path to the config file search paths. Any previously loaded config files are not affected."""
         self._paths.append(self._validate(path))
 
     def load_config_for[T: "nubby.models.SectionModel"](self, model: "Type[T]") -> T:
+        """Loads a config file for a given model and returns an instance of the model."""
         if is_section_model_type(model):
             definition = model.__file_definition__
             filename = definition.file_name
@@ -32,6 +56,7 @@ class ConfigController:
         raise ValueError(f"Model {model.__name__} is not a valid section model")
 
     def save(self, model: "nubby.models.SectionModel"):
+        """Writes the data in a model instance into the associated config file."""
         if is_section_model(model):
             definition = model.__file_definition__
             filename = definition.file_name
@@ -116,8 +141,16 @@ class ConfigController:
 
 
 def get_active_controller(container: Container | None = None) -> ConfigController:
+    """Returns the active config controller instance in the Bevy container. If no container is provided, the global
+    container is used.
+
+    If no active controller is found, a new controller is created and set as the active controller.
+    """
     return bevy.get_container(container).get(ConfigController)
 
 
 def set_active_controller(controller: ConfigController, container: Container | None = None):
+    """Sets the active config controller instance in the Bevy container. If no container is provided, the global
+    container is used.
+    """
     bevy.get_container(container).instances[ConfigController] = controller
