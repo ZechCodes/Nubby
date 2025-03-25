@@ -1,14 +1,13 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from nubby import model_injector, new_file_model
+from nubby.controllers import ConfigController, set_active_controller
 from nubby.loaders import ConfigLoader
-from nubby import ConfigController, SectionModel
-from nubby.controllers import ConfigFile, set_active_controller
 
-from bevy import get_registry, get_container, inject, dependency
+from bevy import get_container, inject, dependency
 from bevy.registries import Registry
 
-from nubby.models import model_injector, new_file_model
 
 file_definition = new_file_model("testing_config")
 
