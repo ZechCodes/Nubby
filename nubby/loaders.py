@@ -1,3 +1,15 @@
+"""This module provides the ConfigLoader interface for loader types that load and write to config files.
+
+Loaders are instantiated with a path to the config file. The loader is responsible for loading the data from the file and
+caching it for future use. The loader is also responsible for writing the data back to the file. The loader instance
+is stored in the config controller and reused for populating models in the future.
+
+Each loader should provide a set of file extensions that it supports. The config controller will use this to determine
+which loader to use for a given file.
+
+Loaders should provide a supported() classmethod if they require optional package dependencies. If the dependencies are
+not installed, the loader's supported() method should return False.
+"""
 from abc import ABC, abstractmethod
 from functools import wraps
 from pathlib import Path
@@ -5,6 +17,14 @@ from typing import Any, Callable, overload
 
 
 class ConfigLoader(ABC):
+    """Abstract base class for config file loaders. Each loader must provide a set of file extensions that it supports.
+
+    A new instance of the loader is created for each config file that is loaded. This instance is stored in the config
+    controller and reused for populating models in the future.
+
+    Loaders can and probably should cache the config data for these future populates, it is not enforced by the
+    interface though.
+    """
     extensions: set[str]
 
     def __init__(self, path: Path):
@@ -42,6 +62,12 @@ class ConfigLoader(ABC):
 
 
 def ensure_supported[F: Callable](message: str) -> Callable[[F], F]:
+    """Decorator that raises an ImportError if the loader is not supported. This should be used for optional loaders
+    that have package dependencies that may not be installed. The loader should implement the supported() classmethod
+    and it should return False if the loader is not supported in the current environment.
+
+    This is used by the toml and yaml loaders on their init methods to ensure the required packages are installed
+    when loaders are instantiated."""
     def wrap(func: F) -> F:
         @wraps(func)
         def wrapper(self, *args, **kwargs):
