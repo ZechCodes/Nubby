@@ -8,10 +8,11 @@ The controller is intended to be stored in a Bevy container and used as a depend
 This allows configs to be cached.
 """
 from pathlib import Path
-from typing import Type, Iterable, Generator
+from typing import overload, Type, Iterable, Generator
 
 import bevy
 from bevy.containers import Container
+from tramp import matches
 
 from nubby.loaders import ConfigLoader
 
@@ -156,10 +157,38 @@ def set_active_controller(controller: ConfigController, container: Container | N
     bevy.get_container(container).instances[ConfigController] = controller
 
 
-def setup_controller(container: Container | None = None, loaders: Iterable[Type[ConfigLoader]] = ()):
+@overload
+def setup_controller(*, container: Container | None = None):
+    ...
+
+
+@overload
+def setup_controller(loader: Type[ConfigLoader], *, container: Container | None = None):
+    ...
+
+
+@overload
+def setup_controller(loaders: Iterable[Type[ConfigLoader]], *, container: Container | None = None):
+    ...
+
+
+def setup_controller(*args, container: Container | None = None):
     """Sets up the active config controller instance in the Bevy container. If no container is provided, the global
     container is used. If a controller is already set, it is replaced with a new controller.
 
     The loaders argument is passed to the ConfigController constructor. If loaders is empty it uses the default loaders.
     """
+    match args:
+        case []:
+            loaders = []
+
+        case [ConfigLoader() as loader]:
+            loaders = [loader]
+
+        case [matches.Iterable() as loaders]:
+            pass
+
+        case _:
+            raise ValueError(f"Invalid arguments: {args}")
+
     set_active_controller(ConfigController(loaders), container)
