@@ -1,3 +1,28 @@
+"""
+This module provides the necessary interfaces necessary to define the shape of config files so that they can be
+dynamically loaded by Nubby.
+
+Nubby uses Bevy for dependency injection, to do that, it needs to know what models are available and how to load them.
+To accomplish this a FileDefinitionModel is used to store metadata about the config file: the file name, how section
+names should be generated, and the models that are exist for the file.
+
+The file type is determined by the file extension. Nubby will look for supported file extensions in the search paths. So
+the file name should just be the name of the file without an extension.
+
+To define a config file, use the new_file_model function. This returns a FileDefinitionModel that can be used to define
+the sections of the config file. Section models can then be defined using the definition's section decorator.
+
+Example:
+    file_definition = new_file_model("example")
+
+    @file_definition.section("data")
+    @dataclass
+    class DataModel:
+        key: str
+
+This example definition supports any config file with the name example.json, example.toml, example.yaml,
+etc. and a top level key named "data". That top level key is used to load the data into the DataModel.
+"""
 from dataclasses import asdict, is_dataclass
 from functools import partial
 from typing import Any, Callable, cast, NoReturn, overload, Protocol, Type, TypeGuard
@@ -6,6 +31,7 @@ import nubby.injectors
 
 
 class SectionModel(Protocol):
+    """Protocol for models that can be loaded from a config file."""
     __file_definition__: "FileModelDefinition" = None
 
     def __init__(self, **kwargs):
@@ -13,12 +39,36 @@ class SectionModel(Protocol):
 
 
 class FileModelDefinition:
+    """Defines a Nubby config file. It holds the file name and the sections that are defined in the file.
+    Each section is associated with a model type. It also provides a way to get the key for a given section by
+    normalizing section model names.
+
+    To add declare a model as a file section use the section decorator. The decorator can take an optional section name.
+    If no name is provided, the model name is used, and may be normalized if a name generator is available.
+
+    Example:
+        file_definition = new_file_model("example")
+
+        @file_definition.section("data")
+        @dataclass
+        class DataModel:
+            key: str
+
+    This example definition supports any config file with the name example.json, example.toml, example.yaml,
+    etc. and a top level key named "data". That top level key is used to load the data into the DataModel.
+    """
     def __init__(self, file_name: str, *, name_generator: Callable[[str], str] | None = None):
         self.file_name = file_name
         self.sections: dict[Type[SectionModel], str] = {}
         self._name_generator = name_generator or str
 
     def get_key_for(self, section: Type[SectionModel]) -> str:
+        """Returns the key for a given section model. If the section is not defined in this file definition, a ValueError
+        is raised.
+        """
+        if section not in self.sections:
+            raise ValueError(f"Section {section.__name__} is not defined in this file definition")
+
         return self.sections[section]
 
     @overload
@@ -34,6 +84,10 @@ class FileModelDefinition:
         ...
 
     def section(self, *args) -> Callable[[Type[Any]], Type[SectionModel]] | Type[SectionModel]:
+        """A decorator that adds a section model to this file definition. The name is used as the key in the config file.
+        If no name is provided, the model name is used, and may be normalized if a name generator is available for the
+        file definition.
+        """
         match args:
             case [str() as name]:
                 return partial(self.section, name)
@@ -50,6 +104,7 @@ class FileModelDefinition:
                 raise ValueError(f"Invalid arguments to {type(self).__name__}.section: {args}")
 
     def _convert_to_section_model(self, model: Type[Any]) -> Type[SectionModel]:
+        """Converts a model to a section model by adding the file definition to the model."""
         model.__file_definition__ = self
         return cast(Type[SectionModel], model)
 
@@ -71,6 +126,8 @@ def new_file_model(file_name: str, *, activate: bool, generate_normalized_names:
 
 def new_file_model(file_name: str, *, activate: bool = True, **kwargs) -> FileModelDefinition:
     """Creates a new file model definition.
+
+    This activates the model injector by default. If you don't want this behavior, pass activate=False.
 
     If generate_normalized_names is True, a snake_case name normalizer is used. If a callable is provided, it is used
     to normalize the name. When omitting this argument or passing False, the model name is used as-is for the config
