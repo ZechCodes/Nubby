@@ -6,7 +6,7 @@ from bevy.containers import Container
 
 from nubby.loaders import ConfigLoader
 
-import nubby.models
+from nubby.models import is_section_model, is_section_model_type, to_dict
 
 
 
@@ -23,21 +23,28 @@ class ConfigController:
         )
 
     def load_config_for[T: "nubby.models.SectionModel"](self, model: "Type[T]") -> T:
-        definition = model.__file_definition__
-        filename = definition.file_name
-        key = definition.get_key_for(model)
-        config = self._get_config_file(filename)
-        data = config.load(key)
-        return model(**data)
+        if is_section_model_type(model):
+            definition = model.__file_definition__
+            filename = definition.file_name
+            key = definition.get_key_for(model)
+            config = self._get_config_file(filename)
+            data = config.load(key)
+            return model(**data)
+
+        raise ValueError(f"Model {model.__name__} is not a valid section model")
 
     def save(self, model: "nubby.models.SectionModel"):
-        definition = model.__file_definition__
-        filename = definition.file_name
-        key = definition.get_key_for(type(model))
-        config = self._get_config_file(filename)
-        data = config.load()
-        data[key] = nubby.models.to_dict(model)
-        config.write(data)
+        if is_section_model(model):
+            definition = model.__file_definition__
+            filename = definition.file_name
+            key = definition.get_key_for(type(model))
+            config = self._get_config_file(filename)
+            data = config.load()
+            data[key] = to_dict(model)
+            config.write(data)
+
+        else:
+            raise ValueError(f"Model {type(model).__name__} is not a section model")
 
     def _find_config_file(self, filename: str) -> tuple[Path, Type[ConfigLoader]]:
         for path in self._get_paths():
