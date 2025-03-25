@@ -35,11 +35,10 @@ class ConfigLoader(ABC):
         ...
 
     @classmethod
-    @abstractmethod
     def supported(cls) -> bool:
         """Returns True if the handler can be used in the current environment. For example, a handler would return False
         if a required parser library is not installed."""
-        ...
+        return True
 
 
 def ensure_supported[F: Callable](message: str) -> Callable[[F], F]:
