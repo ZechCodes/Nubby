@@ -4,6 +4,9 @@ version = "0.1.1"
 description = "A simple config loader for Python using Bevy for dependency injection."
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [
+    {name = "Zech Zimmerman", email = "hi@zech.codes"}
+]
 dependencies = [
     "bevy==3.0.0b2",
     "tramp>=2025.3.2",
