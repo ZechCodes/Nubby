@@ -62,14 +62,15 @@ class FileModelDefinition:
         self.sections: dict[Type[SectionModel], str] = {}
         self._name_generator = name_generator or str
 
-    def get_key_for(self, section: Type[SectionModel]) -> str:
+    def get_key_for(self, section: Type[Any]) -> str:
         """Returns the key for a given section model. If the section is not defined in this file definition, a ValueError
         is raised.
         """
-        if section not in self.sections:
-            raise ValueError(f"Section {section.__name__} is not defined in this file definition")
-
-        return self.sections[section]
+        if is_section_model_type(section):
+            if section in self.sections:
+                return self.sections[section]
+            raise KeyError(f"Section {section.__name__} is not defined in this file definition")
+        raise ValueError(f"Section {section.__name__} is not a valid section model")
 
     @overload
     def section(self, name: str) -> Callable[[Type[Any]], Type[SectionModel]]:
