@@ -118,17 +118,19 @@ class FileModelDefinition:
 
 
 @overload
-def new_file_model(file_name: str, *, activate: bool) -> FileModelDefinition:
+def new_file_model(file_name: str, *, activate: bool = True) -> FileModelDefinition:
     ...
 
 
 @overload
-def new_file_model(file_name: str, *, activate: bool, generate_normalized_names: bool) -> FileModelDefinition:
+def new_file_model(file_name: str, *, activate: bool = True, generate_normalized_names: bool) -> FileModelDefinition:
     ...
 
 
 @overload
-def new_file_model(file_name: str, *, activate: bool, generate_normalized_names: Callable[[str], str]) -> FileModelDefinition:
+def new_file_model(
+    file_name: str, *, activate: bool = True, generate_normalized_names: Callable[[str],str]
+) -> FileModelDefinition:
     ...
 
 
