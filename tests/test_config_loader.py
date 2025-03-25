@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from models import new_file_model
-from nubby import SectionModel, ConfigController
-from io import BytesIO
+from nubby import ConfigController
+from io import StringIO
 
 
 json_file = new_file_model("example_json")
@@ -16,21 +16,21 @@ class JsonModel:
 
 toml_file = new_file_model("example_toml")
 
-@json_file.section("data")
+@toml_file.section("data")
 @dataclass
 class TomlModel:
     name: str
 
 
-class UnclosableBytesIO(BytesIO):
+class UnclosableIO(StringIO):
     def close(self):
         self.seek(0)
 
 
 class DummyPath(Path):
     files = {
-        "/example_json.json": UnclosableBytesIO(b'{"data": {"key": "value"}}'),
-        "/example_toml.toml": UnclosableBytesIO(b'[data]\nname = "bob"'),
+        "/example_json.json": UnclosableIO('{"data": {"key": "value"}}'),
+        "/example_toml.toml": UnclosableIO('[data]\nname = "bob"'),
     }
     def __truediv__(self, other):
         return DummyPath(super().__truediv__(other))

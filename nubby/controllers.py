@@ -1,85 +1,67 @@
 from pathlib import Path
-from typing import Type, Iterable, Generator, TYPE_CHECKING
+from typing import Type, Iterable, Generator
 
 import bevy
 from bevy.containers import Container
 
-from nubby.handlers import ConfigHandler
+from nubby.loaders import ConfigLoader
 
-if TYPE_CHECKING:
-    import nubby.models
+import nubby.models
 
 
 class ConfigFile:
-    def __init__(self, data: dict[str, dict], handler: ConfigHandler, path: Path):
+    def __init__(self, data: dict[str, dict], handler: ConfigLoader, path: Path):
         self.data = data
         self.handler = handler
         self.path = path
 
 
 class ConfigController:
-    def __init__(self, handlers: Iterable[Type[ConfigHandler]] = ()):
+    def __init__(self, loaders: Iterable[Type[ConfigLoader]] = ()):
         self._paths = []
-        self._handlers = self._setup_handlers(handlers)
-        self._config_cache: dict[str, ConfigFile] = {}
+        self._loaders = self._setup_loaders(loaders)
+        self._loaded_configs: dict[str, ConfigLoader] = {}
 
     def add_path(self, path: Path):
         self._paths.append(
             self._validate(path)
         )
 
-    def add_handler(self, handler: Type[ConfigHandler]):
-        self._handlers.update(self._associate_extensions_to_handlers([handler]))
-
     def load_config_for[T: "nubby.models.SectionModel"](self, model: "Type[T]") -> T:
-        file_model = model.__file_definition__
-        filename = file_model.file_name
-        config = self._get_config_file_with_cache(filename)
-        data = config.data
-        if model.__config_key__:
-            data = data.get(model.__config_key__)
-            if data is None:
-                raise KeyError(
-                    f"Config key {model.__config_key__!r} for {model.__module__}.{model.__qualname__} not found in "
-                    f"{filename!r}"
-                )
-
+        definition = model.__file_definition__
+        filename = definition.file_name
+        key = definition.get_key_for(model)
+        config = self._get_config_file(filename)
+        data = config.load(key)
         return model(**data)
 
     def save(self, model: "nubby.models.SectionModel"):
-        file_definition = model.__file_definition__
-        filename = file_definition.file_name
-        config = self._get_config_file_with_cache(filename)
+        definition = model.__file_definition__
+        filename = definition.file_name
+        key = definition.get_key_for(type(model))
+        config = self._get_config_file(filename)
+        data = config.load()
+        data[key] = nubby.models.to_dict(model)
+        config.write(data)
 
-        config_file.update
-        if model.__config_key__:
-            config.data[model.__config_key__] = model.to_dict()
-
-        else:
-            config.data = model.to_dict()
-
-        with config.path.open("wb") as file:
-            config.handler.write(config.data, file)
-
-    def _find_config_file(self, filename: str) -> tuple[Path, ConfigHandler]:
+    def _find_config_file(self, filename: str) -> tuple[Path, Type[ConfigLoader]]:
         for path in self._get_paths():
-            for extension, handler in self._handlers.items():
+            for extension, loader in self._loaders.items():
                 file_path = path / f"{filename}.{extension}"
                 if file_path.exists():
-                    return file_path, handler
+                    return file_path, loader
 
         raise FileNotFoundError(
             f"Config file {filename!r} not found in paths:\n"
             f"{'\n'.join(f'    - {path}' for path in self._get_paths())}"
         )
 
-    def _get_config_file_with_cache(self, filename: str) -> ConfigFile:
-        file_path, handler = self._find_config_file(filename)
-        if file_path not in self._config_cache:
-            with file_path.open("rb") as file:
-                self._config_cache[filename] = ConfigFile(handler.load(file), handler, file_path)
+    def _get_config_file(self, filename: str) -> ConfigLoader:
+        file_path, loader = self._find_config_file(filename)
+        if file_path not in self._loaded_configs:
+            self._loaded_configs[filename] = loader(file_path)
 
-        return self._config_cache[filename]
+        return self._loaded_configs[filename]
 
     def _get_paths(self) -> list[Path]:
         if self._paths:
@@ -87,24 +69,24 @@ class ConfigController:
 
         return [Path.cwd()]
 
-    def _setup_handlers(self, handlers: Iterable[Type[ConfigHandler]]) -> dict[str, ConfigHandler]:
-        handler_list = list(handlers)
+    def _setup_loaders(self, loaders: Iterable[Type[ConfigLoader]]) -> dict[str, Type[ConfigLoader]]:
+        loader_list = list(loaders)
 
-        if not handler_list:
-            from nubby import JsonHandler, YamlHandler, TomlHandler
-            handler_list = [
-                handler
-                for handler in [JsonHandler, TomlHandler, YamlHandler]
-                if handler.supported()
+        if not loader_list:
+            import nubby.builtins.loaders as loaders
+            loader_list = [
+                loader
+                for loader in vars(loaders).values()
+                if isinstance(loader, type) and issubclass(loader, ConfigLoader) and loader.supported()
             ]
 
-        elif invalid_handlers := [handler for handler in handler_list if not handler.supported()]:
+        elif invalid_loaders := [loader for loader in loader_list if not loader.supported()]:
             raise ValueError(
-                f"Config handlers must be supported:\n"
-                f"{'\n'.join(f'    - {handler.__name__} (Not Supported)' for handler in invalid_handlers)}"
+                f"Config loaders must be supported:\n"
+                f"{'\n'.join(f'    - {loader.__name__} (Not Supported)' for loader in invalid_loaders)}"
             )
 
-        return dict(self._associate_extensions_to_handlers(handler_list))
+        return dict(self._associate_extensions_to_loaders(loader_list))
 
     def _validate(self, path: Path | str) -> Path:
         match path:
@@ -120,18 +102,17 @@ class ConfigController:
             case _:
                 raise ValueError(f"Received an invalid path value: {path!r}")
 
-
     @staticmethod
-    def _associate_extensions_to_handlers(
-        handlers: list[Type[ConfigHandler]]
-    ) -> Generator[tuple[str, ConfigHandler], None, None]:
-        handler_instances = {}
-        for handler in handlers:
-            for extension in handler.extensions:
-                if handler not in handler_instances:
-                    handler_instances[handler] = handler()
+    def _associate_extensions_to_loaders(
+        loaders: list[Type[ConfigLoader]]
+    ) -> Generator[tuple[str, Type[ConfigLoader]], None, None]:
+        loader_instances = {}
+        for loader in loaders:
+            for extension in loader.extensions:
+                if loader not in loader_instances:
+                    loader_instances[loader] = loader
 
-                yield extension, handler_instances[handler]
+                yield extension, loader_instances[loader]
 
 
 def get_active_controller(container: Container | None = None) -> ConfigController:
