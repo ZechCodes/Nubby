@@ -84,9 +84,9 @@ class FileModelDefinition:
         ...
 
     def section(self, *args) -> Callable[[Type[Any]], Type[SectionModel]] | Type[SectionModel]:
-        """A decorator that adds a section model to this file definition. The name is used as the key in the config file.
-        If no name is provided, the model name is used, and may be normalized if a name generator is available for the
-        file definition.
+        """A decorator that adds a section model to the file definition and modifies it to adhere to the SectionModel
+        protocol. The name is used as the key in the config file. If no name is provided, the model name is used and may
+        be normalized if a name generator is available for the file definition.
         """
         match args:
             case [str() as name]:
