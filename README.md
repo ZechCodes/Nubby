@@ -38,11 +38,14 @@ Here's a basic example of loading a model from a file.
 ```python
 from dataclasses import dataclass
 from bevy import inject, dependency
-from nubby import SectionModel
+from nubby.models import new_file_model
 
 
+config_definition = new_file_model("person_info")
+
+@config_definition.section
 @dataclass
-class Person(SectionModel, filename="person_info"):
+class Person:
     name: str
     age: int
 
@@ -55,10 +58,10 @@ def print_person_details(person: Person = dependency()):
     print(f"{person.name} is {person.age} years old")
 ```
 
-Running `print_person_details()` will print the name and age of the person loaded from the `person_info` file.
+Running `print_person_details()` prints the name and age of the person loaded from the `Person` section of the `person_info` file.
 Depending on the available file handlers it could be a json, toml, or yaml file.
 
-Note that it is not necessary to pass anything to the `print_person_details` function. Bevy automatically injects the
+Note that it is not necessary to pass anything to the `print_person_details` function. Nubby uses Bevy to automatically inject the
 `Person` model and loads the appropriate config file.
 
 To save any modifications to a model just call the active controller's `save` method, passing it the updated model.
