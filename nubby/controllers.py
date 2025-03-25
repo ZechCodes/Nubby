@@ -9,11 +9,6 @@ from nubby.loaders import ConfigLoader
 import nubby.models
 
 
-class ConfigFile:
-    def __init__(self, data: dict[str, dict], handler: ConfigLoader, path: Path):
-        self.data = data
-        self.handler = handler
-        self.path = path
 
 
 class ConfigController:
