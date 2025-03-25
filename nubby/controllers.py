@@ -18,9 +18,7 @@ class ConfigController:
         self._loaded_configs: dict[str, ConfigLoader] = {}
 
     def add_path(self, path: Path):
-        self._paths.append(
-            self._validate(path)
-        )
+        self._paths.append(self._validate(path))
 
     def load_config_for[T: "nubby.models.SectionModel"](self, model: "Type[T]") -> T:
         if is_section_model_type(model):
