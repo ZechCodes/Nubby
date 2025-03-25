@@ -154,3 +154,12 @@ def set_active_controller(controller: ConfigController, container: Container | N
     container is used.
     """
     bevy.get_container(container).instances[ConfigController] = controller
+
+
+def setup_controller(container: Container | None = None, loaders: Iterable[Type[ConfigLoader]] = ()):
+    """Sets up the active config controller instance in the Bevy container. If no container is provided, the global
+    container is used. If a controller is already set, it is replaced with a new controller.
+
+    The loaders argument is passed to the ConfigController constructor. If loaders is empty it uses the default loaders.
+    """
+    set_active_controller(ConfigController(loaders), container)
