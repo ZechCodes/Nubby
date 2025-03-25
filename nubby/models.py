@@ -73,6 +73,10 @@ class FileModelDefinition:
         raise ValueError(f"Section {section.__name__} is not a valid section model")
 
     @overload
+    def section(self) -> Callable[[Type[Any]], Type[SectionModel]]:
+        ...
+
+    @overload
     def section(self, name: str) -> Callable[[Type[Any]], Type[SectionModel]]:
         ...
 
@@ -90,6 +94,9 @@ class FileModelDefinition:
         be normalized if a name generator is available for the file definition.
         """
         match args:
+            case []:
+                return self.section
+
             case [str() as name]:
                 return partial(self.section, name)
 
