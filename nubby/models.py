@@ -16,10 +16,10 @@ class SectionModel(Protocol):
 
 
 class FileModelDefinition:
-    def __init__(self, file_name: str, *, name_generator: Callable[[str, str], str] | None = None):
+    def __init__(self, file_name: str, *, name_generator: Callable[[str], str] | None = None):
         self.file_name = file_name
         self.sections: dict[Type[SectionModel], str] = {}
-        self._name_generator = name_generator or self._default_name_generator
+        self._name_generator = name_generator or str
 
     def get_key_for(self, section: Type[SectionModel]) -> str:
         return self.sections[section]
@@ -46,7 +46,7 @@ class FileModelDefinition:
 
             case [str() as name, type() as model]:
                 section = self._convert_to_section_model(model)
-                self.sections[section] = self._name_generator(name, section.__name__)
+                self.sections[section] = name or self._name_generator(section.__name__)
                 return section
 
             case _:
@@ -55,9 +55,6 @@ class FileModelDefinition:
     def _convert_to_section_model(self, model: Type[Any]) -> Type[SectionModel]:
         model.__file_definition__ = self
         return cast(Type[SectionModel], model)
-
-    def _default_name_generator(self, name: str, model_name: str) -> str:
-        return name or model_name
 
 
 @hooks.HANDLE_UNSUPPORTED_DEPENDENCY
@@ -70,12 +67,44 @@ def model_injector[T](container: Container, dependency: Type[T]) -> Optional[T]:
     return Optional.Nothing()
 
 
-def new_file_model(file_name: str, *, generate_normalized_names: bool = False) -> FileModelDefinition:
-    kwargs = {}
-    if generate_normalized_names:
-        kwargs["name_generator"] = lambda name, model_name: name or _normalized_name(model_name)
+@overload
+def new_file_model(file_name: str) -> FileModelDefinition:
+    ...
 
-    return FileModelDefinition(file_name, **kwargs)
+
+@overload
+def new_file_model(file_name: str, *, generate_normalized_names: bool) -> FileModelDefinition:
+    ...
+
+
+@overload
+def new_file_model(file_name: str, *, generate_normalized_names: Callable[[str], str]) -> FileModelDefinition:
+    ...
+
+
+def new_file_model(file_name: str, **kwargs) -> FileModelDefinition:
+    """Creates a new file model definition.
+
+    If generate_normalized_names is True, a snake_case name normalizer is used. If a callable is provided, it is used
+    to normalize the name. When omitting this argument or passing False, the model name is used as-is for the config
+    section key.
+    """
+    pass_kwargs = {}
+    match kwargs:
+        case {}:
+            pass
+
+        case {"generate_normalized_names": bool() as normalized_names}:
+            if normalized_names:
+                pass_kwargs["name_generator"] = _snake_case_normalizer
+
+        case {"generate_normalized_names": Callable() as generator}:
+            pass_kwargs["name_generator"] = generator
+
+        case _:
+            raise ValueError(f"Invalid keyword arguments: {kwargs}")
+
+    return FileModelDefinition(file_name, **pass_kwargs)
 
 
 def is_section_model(c: Any) -> TypeGuard[SectionModel]:
@@ -96,6 +125,18 @@ def is_section_model_type(c: Type[Any]) -> TypeGuard[Type[SectionModel]]:
 
 
 def to_dict(obj: Any) -> dict[str, Any]:
+    """Converts a model to a dictionary.
+
+    This attempts to find a supported interface to convert the object to a dictionary. If no interface is found, a
+    ValueError is raised.
+
+    Supported interfaces are checked in this order:
+        - obj.to_dict()
+        - obj.dict()
+        - dataclasses.asdict(obj) if is_dataclass(obj) is True
+
+    Providing a to_dict method on a model of any type overrides the other interfaces.
+    """
     if hasattr(obj, "to_dict") and callable(obj.to_dict):
         return obj.to_dict()
 
@@ -108,7 +149,7 @@ def to_dict(obj: Any) -> dict[str, Any]:
     raise ValueError(f"Object {obj} provides no known interface to convert to a dict.")
 
 
-def _normalized_name(name: str) -> str:
+def _snake_case_normalizer(name: str) -> str:
     import re
 
     parts = re.findall(r"[A-Z0-9][a-zA-Z0-9]*", name)
