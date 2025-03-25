@@ -2,10 +2,7 @@ from dataclasses import asdict, is_dataclass
 from functools import partial
 from typing import Any, Callable, cast, NoReturn, overload, Protocol, Type, TypeGuard
 
-from bevy.hooks import hooks
-from bevy.containers import Container
-from tramp.optionals import Optional
-import nubby.controllers
+import nubby.injectors
 
 
 class SectionModel(Protocol):
@@ -57,38 +54,31 @@ class FileModelDefinition:
         return cast(Type[SectionModel], model)
 
 
-@hooks.HANDLE_UNSUPPORTED_DEPENDENCY
-def model_injector[T](container: Container, dependency: Type[T]) -> Optional[T]:
-    if is_section_model_type(dependency):
-        return Optional.Some(
-            nubby.controllers.get_active_controller(container).load_config_for(dependency)
-        )
-
-    return Optional.Nothing()
-
-
 @overload
-def new_file_model(file_name: str) -> FileModelDefinition:
+def new_file_model(file_name: str, *, activate: bool) -> FileModelDefinition:
     ...
 
 
 @overload
-def new_file_model(file_name: str, *, generate_normalized_names: bool) -> FileModelDefinition:
+def new_file_model(file_name: str, *, activate: bool, generate_normalized_names: bool) -> FileModelDefinition:
     ...
 
 
 @overload
-def new_file_model(file_name: str, *, generate_normalized_names: Callable[[str], str]) -> FileModelDefinition:
+def new_file_model(file_name: str, *, activate: bool, generate_normalized_names: Callable[[str], str]) -> FileModelDefinition:
     ...
 
 
-def new_file_model(file_name: str, **kwargs) -> FileModelDefinition:
+def new_file_model(file_name: str, *, activate: bool = True, **kwargs) -> FileModelDefinition:
     """Creates a new file model definition.
 
     If generate_normalized_names is True, a snake_case name normalizer is used. If a callable is provided, it is used
     to normalize the name. When omitting this argument or passing False, the model name is used as-is for the config
     section key.
     """
+    if activate:
+        nubby.injectors.activate()
+
     pass_kwargs = {}
     match kwargs:
         case {}:
