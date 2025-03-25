@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from models import new_file_model
+from nubby.models import new_file_model
 from nubby import ConfigController
 from io import StringIO
 

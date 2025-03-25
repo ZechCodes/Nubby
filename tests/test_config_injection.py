@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from loaders import ConfigLoader
+from nubby.loaders import ConfigLoader
 from nubby import ConfigController, SectionModel
 from nubby.controllers import ConfigFile, set_active_controller
 
