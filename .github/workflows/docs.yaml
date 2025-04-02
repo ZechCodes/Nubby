@@ -16,6 +16,5 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           version: "0.6.9"
-      - run: uv install --extras docs
       - name: Build and deploy docs
-        run: uv run mkdocs gh-deploy --force
+        run: uv run --extra docs mkdocs gh-deploy --force
