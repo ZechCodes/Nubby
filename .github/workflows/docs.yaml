@@ -17,4 +17,4 @@ jobs:
         with:
           version: "0.6.9"
       - name: Build and deploy docs
-        run: uv run --extra docs mkdocs gh-deploy --force
+        run: uv run --group docs mkdocs gh-deploy --force
