@@ -1,0 +1,28 @@
+"""Prevent dependency and installer trust from regressing after CA distrust."""
+import re
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class CaTrustTests(unittest.TestCase):
+    def test_locked_certifi_excludes_distrusted_roots(self):
+        lock = (ROOT / "uv.lock").read_text()
+        package = re.search(r'(?m)^name = "certifi"\nversion = "([^"\n]+)"', lock)
+        self.assertIsNotNone(package, "certifi must remain explicitly locked")
+        version = tuple(int(part) for part in package.group(1).split("."))
+        self.assertGreaterEqual(version, (2026, 10, 19))
+
+    def test_workflows_use_remediated_uv(self):
+        workflows = list((ROOT / ".github" / "workflows").glob("*.yaml"))
+        self.assertTrue(workflows)
+        for workflow in workflows:
+            text = workflow.read_text()
+            if "astral-sh/setup-uv@" in text:
+                self.assertNotIn('version: "0.6.9"', text, workflow.name)
+                self.assertIn('version: "0.13.4"', text, workflow.name)
+
+
+if __name__ == "__main__":
+    unittest.main()
